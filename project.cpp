@@ -1,17 +1,14 @@
 #include <bits/stdc++.h>
 
 using namespace std;
-//change var names to intuitive names as per their function
 
 int pc,sp,a,b;//declaration of registers
 long long pow2[33];
 //pc starts from 0 as code segment start from zero
 //initialize sp to correct value.
-//errors being handled :->
-//1)duplicate labels must not exist : I am reporting the error and stopping exec just after first pass.
-//2)
 
 //clarify behaviour of data and set mnemonic , from ammar, abhay.
+//make a file saying all the errors that you handle,what your programme does etc.
 
 bool NaN,extraValue;//checks validity of number
 map<string,int> label_addr;//stores the address of each label.
@@ -201,30 +198,25 @@ int main()
 	int line_number=0;
 	string addr;
 	size_t len=0;
-	vector<pair<string,int>> errors;
+	vector<pair<string,int>> errors;//this will store the error message along with the line number as they occur.
 	// first pass
-	while(getline(&ix,&len,fp1)!=-1)
+	while(getline(&ix,&len,fp1)!=-1)//read a line into varibele ix
 	{
 		line_number++;
 		x.clear();
 		x=ix;
-		original[line_number]={pc,x};
-		// remove semicolon, if not found, issue error message and exit;
+		original[line_number]={pc,x};//storing pc along with original code.
 		x=remove_semicolon(x);
-		// remove unnecessary padding of spaces;
 		x=remove_spaces(x);
-		if(x.empty()){
-			// cout<<"Syntax error : empty instruction, line number : "<<line_number<<'\n';
-			// return 0;
+		if(x.empty()){//this line only had a comment.
 			isEmpty[line_number]=1;
 			continue;
 		}
-		// capitalise the instruction(just for uniformity and ease of check);
 		x=capitalise(x);
 		// remove label
 		bool label=0;
 		string labelName;
-		for(int i=0;i<x.size();i++)
+		for(int i=0;i<x.size();i++)//we find labels here, and store their addresses.
 		{
 			if(x[i]==':')
 			{
@@ -237,24 +229,31 @@ int main()
 		}
 		if(label)
 		{
-			if(!isValidLabelName(labelName))
+			if(!isValidLabelName(labelName))//we store an error message if the the label name is invalid.
 			{
 				string errorMsg="A bogus label name was found on line";
 				errors.push_back({errorMsg,line_number});
 			}
-			addr=to_hex(pc,4);
+			if(label_addr.find(labelName)!=label_addr.end()) {//if labelName already exists
+				string errorMsg="A duplicate label was found on line";//we store error message for dupicate label.
+				errors.push_back({errorMsg,line_number});
+			}
+			validLabels.insert(labelName);//this set stores the name of all valid labels.
+			label_addr[labelName]=(pc);//storing the address of pc.
+			//writing label name and its address into symbol table file.
+			for(int i=0;i<labelName.size();i++)
+			{
+				temp[i]=labelName[i];
+			}
+			temp[labelName.size()]='\0';
+			fprintf(sys,"%s ",temp);
+			addr=to_hex(pc,4);//get hex value of pc (upto four digits).
 			for(int i=0;i<addr.size();i++)
 			{
 				temp[i]=addr[i];
 			}
 			temp[addr.size()]='\0';
 			fprintf(sys,"%s\n",temp);
-			if(label_addr.find(labelName)!=label_addr.end()) {
-				string errorMsg="A duplicate label was found on line";
-				errors.push_back({errorMsg,line_number});
-			}
-			validLabels.insert(labelName);
-			label_addr[labelName]=(pc);
 		}
 		if(x.empty()) continue;
 		isInstruction[line_number]=1;
@@ -264,17 +263,19 @@ int main()
 		code[pc]=x;
 		pc++;
 	}
+	//closing the input file.
+	fclose(fp1);
 	//second pass
-	for(auto &it:original)
+	for(auto &it:original)//we traverse each line of code.
 	{
 		pc=it.second.first;
 		x=code[pc];
 		int opcode=0,oprnd=0;
-		if(x.substr(0,3)=="ADD")
+		if(x.substr(0,3)=="ADD")//one by one we check for the match of operation.
 		{
 			// a=b+a;
 			opcode=6;
-			if(x.size()!=3) {
+			if(x.size()!=3) {//if the first three chars match to add, but has some more chars after it as operand, then issue an error.
 				string temp="A numerical value was not expected on line";
 				errors.push_back({temp,it.first});
 			}
@@ -339,8 +340,7 @@ int main()
 			//stop the emulator;
 		}else
 		{
-			// cout<<it.first<<' '<<x<<'\n';
-			//these are instructions which have operand.
+			//these are instructions which have one soperand.
 			string operation,operand;
 			bool operandPresent=0;
 			int ptr=0;
@@ -354,24 +354,25 @@ int main()
 				}
 				ptr++;
 			}
-			if(operandPresent==0)
-			{
+			if(operandPresent==0)//if operand is not present then we need to issue an error
+			{//either the mnemonic is bogus or we lack an operand.
 				operation=x;
 			}
 			while(ptr<x.size()&&(x[ptr]==' '||x[ptr]=='	')) ptr++;
 			bool label=0;
-			operand=x.substr(ptr,x.size()-ptr);
+			//operand can be a number or a label.
+			operand=x.substr(ptr,x.size()-ptr);//we extract the operation and operand.
 			if((operand[0]>='0'&&operand[0]<='9')||operand[0]=='-'||operand[0]=='+')
 			{
 				//immediate value
 				NaN=0;
 				extraValue=0;
-				oprnd=toNumber(operand);
-				if(NaN) {
-					if(extraValue) {
+				oprnd=toNumber(operand);//convert string to number.
+				if(NaN) {//if conversion issues an error, then report it.
+					if(extraValue) {//if there are multiple values then issue this error.
 						string temp="Only one numerical value was expected on line";
 						errors.push_back({temp,it.first});
-					}else {
+					}else {//if the number is wronly written then issue this error.
 						string temp="There is a non-numerical value on line";
 						errors.push_back({temp,it.first});
 					}
@@ -381,13 +382,11 @@ int main()
 				//its a label
 				label=1;
 			}
-			//operand is not always a number.
-			// if(it.first==7) cout<<oprnd<<' '<<operand<<'\n';
 			if(operation=="DATA")
 			{
 				NaN=0;
 				extraValue=0;
-				if(operandPresent==0) {
+				if(operandPresent==0) {//if operand is not recieved , then issue error saying lack of operand.
 					string temp="A numerical value was expected on line";
 					errors.push_back({temp,it.first});
 					continue;
@@ -624,14 +623,14 @@ int main()
 			}else
 			{
 				// invalid instruction
-				if(isInstruction[it.first]) {
-					string temp="An unknown mnemonic was found on line";
+				if(isInstruction[it.first]) {//if the line had an instruction, and it does not match to any valid instruction,
+					string temp="An unknown mnemonic was found on line";//then issue error saying invalid mnemonic.
 					errors.push_back({temp,it.first});
 				}
 			}
 		}
-		// make operand + opcode as machine code. 
-		// write to fp2 pc+[operand][opcode].
+		// make operand(6 hex digits,24 bits) + opcode(2 hex digits,8 bits) as machine code. 
+		//write pc in the listing file
 		string tmp;
 		tmp=to_hex(pc,4);
 		for(int i=0;i<tmp.size();i++)
@@ -639,26 +638,26 @@ int main()
 			temp[i]=tmp[i];
 		}
 		temp[tmp.size()]='\0';
+		//if the line is not empty(has label or mnemonic) then write pc into listing file.
+		//note that blank lines or comments do not have their pc.
 		if(isEmpty[it.first]==0) fprintf(fp3,"%s ",temp);
-		tmp=to_hex(oprnd,6);
-		// cout<<oprnd<<"\n";
-		string res=to_hex(opcode,2);
-		// cout<<operation<<" "<<opcode<<" "<<operand<<"\n";
-		// cout<<tmp<<' '<<res<<'\n';
-		tmp+=res;
+		tmp=to_hex(oprnd,6);//24 bit operand
+		string res=to_hex(opcode,2);//8 bit opcode
+		tmp+=res;//appending 8 bit opcode, now tmp is 32 bit machine code.
 		for(int i=0;i<tmp.size();i++)
 		{
 			temp[i]=tmp[i];
 		}
 		temp[tmp.size()]='\0';
-		if(isInstruction[it.first]==0)
+		if(isInstruction[it.first]==0)//write machine code only if the line has an instruction.
 		{
-			for(int i=0;i<tmp.size();i++)
+			for(int i=0;i<tmp.size();i++)//if it is not instruction then we just print whitespaces.
 			{
 				temp[i]=' ';
 			}
 		}
 		fprintf(fp3,"%s ",temp);
+		//now print the original code in the listing file.
 		for(int i=0;i<it.second.second.size();i++)
 		{
 			temp[i]=it.second.second[i];
@@ -666,6 +665,7 @@ int main()
 		temp[it.second.second.size()]='\0';
 		fprintf(fp3,"%s",temp);
 	}
+	//now we sort the error messages as per their line numbers.
 	vector<pair<int,string>> tempv;
 	for(auto &it:errors)
 	{
@@ -677,7 +677,7 @@ int main()
 	{
 		errors.push_back({it.second,it.first});
 	}
-	for(auto &it:errors)
+	for(auto &it:errors)//write the error messages into the log file.
 	{
 		string tmp;
 		tmp="ERROR: "+it.first;
@@ -690,7 +690,6 @@ int main()
 		temp[tmp.size()]='\0';
 		fprintf(fp4,"%s\n",temp);
 	}
-	fclose(fp1);
 	fclose(fp2);
 	fclose(fp3);
 	fclose(fp4);
