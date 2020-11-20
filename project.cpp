@@ -181,20 +181,43 @@ bool isValidLabelName(string name)//this function checks if the input string is 
 }
 // implement br 75
 // sample programs
-// take the name of the input file from command line
-int main()
+int main(int argc,char **argv)
 {
 	pow2[0]=1;
 	for(int i=1;i<33;i++)
 	{
 		pow2[i]=(pow2[i-1]*2ll);
 	}
-	FILE *fp1,*fp2,*sys,*fp3,*fp4;//set up file pointers.
-	fp1=fopen("input.asm","r");
-	fp2=fopen("output.o","w");
-	sys=fopen("symbolTable.txt","w");
-	fp3=fopen("listing.l","w");
-	fp4=fopen("errors.log","w");
+	string fname=argv[1],objectFile,listingFile,errorFile;
+	objectFile=fname.substr(0,fname.size()-4)+".o";
+	listingFile=fname.substr(0,fname.size()-4)+".l";
+	errorFile=fname.substr(0,fname.size()-4)+".log";
+	FILE *fp1,*fp2,*fp3,*fp4;//set up file pointers.
+	char temp1[300],temp2[300],temp3[300],temp4[300];
+	for(int i=0;i<fname.size();i++)
+	{
+		temp1[i]=fname[i];
+	}
+	temp1[fname.size()]='\0';
+	fp1=fopen(temp1,"r");
+	for(int i=0;i<objectFile.size();i++)
+	{
+		temp2[i]=objectFile[i];
+	}
+	temp2[objectFile.size()]='\0';
+	fp2=fopen(temp2,"w");
+	for(int i=0;i<listingFile.size();i++)
+	{
+		temp3[i]=listingFile[i];
+	}
+	temp3[listingFile.size()]='\0';
+	fp3=fopen(temp3,"w");
+	for(int i=0;i<errorFile.size();i++)
+	{
+		temp4[i]=errorFile[i];
+	}
+	temp4[errorFile.size()]='\0';
+	fp4=fopen(temp4,"w");
 	char temp[300];//this temporary variable is used to write strings to file using fprintf
 	char *ix;//this is used to take input
 	string x;//this is used to store input(rather that char *), for easy handling
@@ -255,20 +278,6 @@ int main()
 				t1=remove_spaces(t1);
 				label_addr[labelName]=toNumber(t1);
 			}
-			//writing label name and its address into symbol table file.
-			for(int i=0;i<labelName.size();i++)
-			{
-				temp[i]=labelName[i];
-			}
-			temp[labelName.size()]='\0';
-			fprintf(sys,"%s ",temp);
-			addr=to_hex(pc,4);//get hex value of pc (upto four digits).
-			for(int i=0;i<addr.size();i++)
-			{
-				temp[i]=addr[i];
-			}
-			temp[addr.size()]='\0';
-			fprintf(sys,"%s\n",temp);
 		}else if(x.substr(0,3)=="SET")
 		{
 			errors.push_back({"Missing label before SET mnemonic on line",line_number});
@@ -824,5 +833,4 @@ int main()
 	fclose(fp2);
 	fclose(fp3);
 	fclose(fp4);
-	fclose(sys);
 }
