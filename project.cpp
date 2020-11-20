@@ -7,9 +7,6 @@ long long pow2[33];
 //pc starts from 0 as code segment start from zero
 //initialize sp to correct value.
 
-//clarify behaviour of data and set mnemonic , from ammar, abhay.
-//make a file saying all the errors that you handle,what your programme does etc.
-
 bool NaN[3],extraValue;//checks validity of number
 map<string,int> label_addr,labelLineNumber;//stores the address of each label.
 map<int,string> code;//stores the code corresponding to each pc.
@@ -17,6 +14,7 @@ map<int,pair<int,string>> original;//stores the code corresponding to each line 
 map<int,bool> isInstruction,isEmpty;//stores boolean , if the line is an instruction or if it is empty.
 set<string> validLabels,usedLabels;//holds the names of all the valid labels.
 int errorLineNumber=-1;
+vector<string> binaryRes;
 
 char get_char(int val){//this function is used to get the hex value for each number between 0 to 15.
 	switch(val){
@@ -153,8 +151,8 @@ int toNumber(string s)//this function converts the input string into a number,
 	}
 	for(int i=s.size()-1;i>=0;--i)
 	{
-		if(!(s[i]<='9'&&s[i]>='0')) continue; 
-		ret+=(s[i]-'0')*p;
+		if(s[i]>='0'&&s[i]<='9') ret+=(s[i]-'0')*p;
+		if(s[i]>='A'&&s[i]<='F') ret+=(s[i]-'A'+10)*p;
 		p*=mul;
 	}
 	if(sign==-1) ret=-ret;
@@ -179,8 +177,7 @@ bool isValidLabelName(string name)//this function checks if the input string is 
 	if(!(name[0]>='A'&&name[0]<='Z')) return 0;
 	return 1;
 }
-// implement br 75
-// sample programs
+
 int main(int argc,char **argv)
 {
 	pow2[0]=1;
@@ -200,12 +197,6 @@ int main(int argc,char **argv)
 	}
 	temp1[fname.size()]='\0';
 	fp1=fopen(temp1,"r");
-	for(int i=0;i<objectFile.size();i++)
-	{
-		temp2[i]=objectFile[i];
-	}
-	temp2[objectFile.size()]='\0';
-	fp2=fopen(temp2,"w");
 	for(int i=0;i<listingFile.size();i++)
 	{
 		temp3[i]=listingFile[i];
@@ -399,6 +390,7 @@ int main(int argc,char **argv)
 			bool label=0;
 			//operand can be a number or a label.
 			operand=x.substr(ptr,x.size()-ptr);//we extract the operation and operand.
+			// correct it to handle hex,octal,decimal numbers, if error comes that means it is a label
 			if((operand[0]>='0'&&operand[0]<='9')||operand[0]=='-'||operand[0]=='+')
 			{
 				//immediate value
@@ -777,9 +769,7 @@ int main(int argc,char **argv)
 			}
 		}else
 		{
-			if(firstPrint) fprintf(fp2,"\n");
-			fprintf(fp2,"%s",temp);
-			firstPrint=1;
+			binaryRes.push_back(tmp);
 		}
 		fprintf(fp3,"%s ",temp);
 		//now print the original code in the listing file.
@@ -789,6 +779,28 @@ int main(int argc,char **argv)
 		}
 		temp[it.second.second.size()]='\0';
 		fprintf(fp3,"%s",temp);
+	}
+	//print the contents of object file if there is no error
+	if(errors.empty())
+	{
+		for(int i=0;i<objectFile.size();i++)
+		{
+			temp2[i]=objectFile[i];
+		}
+		temp2[objectFile.size()]='\0';
+		fp2=fopen(temp2,"w");
+		for(auto &it:binaryRes)
+		{
+			if(firstPrint) fprintf(fp2,"\n");
+			for(int i=0;i<it.size();i++)
+			{
+				temp[i]=it[i];
+			}
+			temp[it.size()]='\0';
+			fprintf(fp2,"%s",temp);
+			firstPrint=1;
+		}
+		fclose(fp2);
 	}
 	//now we sort the error messages as per their line numbers.
 	vector<pair<int,string>> tempv;
@@ -830,7 +842,6 @@ int main(int argc,char **argv)
 			fprintf(fp4,"%s\n",temp);
 		}
 	}
-	fclose(fp2);
 	fclose(fp3);
 	fclose(fp4);
 }
